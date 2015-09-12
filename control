@@ -1,0 +1,9 @@
+Package: com.joshdoctors.bannerstyle
+Name: BannerStyle
+Depends: mobilesubstrate
+Version: 0.0.1
+Architecture: iphoneos-arm
+Description: Add flair to your notification banner animations.
+Maintainer: Josh Doctors
+Author: Josh Doctors
+Section: Tweaks
