@@ -5,11 +5,20 @@
 
 extern "C" UIImage * _UICreateScreenUIImage();
 
+#define PERSPECTIVE_LAYER @"PERSPECTIVE_LAYER"
+#define IS_ANIMATING @"IS_ANIMATING"
+
+typedef enum {
+    CubeTransitionDirectionUp,
+    CubeTransitionDirectionDown
+} CubeTransitionDirection;
+
 @interface SBBannerContainerView : UIView
 @end
 
 @interface SBBannerContextView : UIView
 -(CGRect)frame;
+-(UIView*)_vibrantContentView;
 @end
 
 @interface SBDefaultBannerView : UIView
@@ -33,9 +42,23 @@ extern "C" UIImage * _UICreateScreenUIImage();
 -(UIView*)bannerContextView;
 @end
 
+@implementation CALayer (NPAnchorPosition)
+
+- (void)setAnchorPointWhileMaintainingPosition:(CGPoint)anchorPoint {
+    [self setAnchorPoint:anchorPoint];
+    [self setPosition:CGPointMake(self.position.x + self.bounds.size.width * (self.anchorPoint.x - 0.5), self.position.y + self.bounds.size.height * (self.anchorPoint.y - 0.5))];
+}
+
+@end
+
 static UIView * newBanner = nil;
 static UIView * flipBanner = nil;
+static UIView * containerBanner = nil;
+static UIView * transitionBanner = nil;
 static UIImageView * newBannerIV = nil;
+static UIImageView * fromIV = nil;
+static UIImageView * toIV = nil;
+static UIView * toV = nil;
 static SBBannerContainerView * container = nil;
 static SBBannerContextView * bannerContext = nil;
 static CGRect defaultIconFrame;
@@ -61,20 +84,25 @@ static BOOL preventRealCompletion = YES;
 	}
 	else if(preventRealCompletion)
 	{
-		int style = 2;
+		int style = 5;
 		if( style == 0 || style == 1 || style == 2 )
 		{
 			[self displayStaticBanner:style];
 		}
 		else if(style == 3)
 		{
-			[self setupFlipBanner];
-			[self displayFlipBanner];
+			[self setupTransitionBanner];
+			[self displayTransitionBanner];
 		}
 		else if(style == 4)
 		{
 			[self setupAnimatedBanner];
 			[self displayAnimatedBanner];
+		}
+		else if(style == 5)
+		{
+			[self setupFlipBanner];
+			[self displayFlipBanner];
 		}
 	}
 	else
@@ -133,73 +161,73 @@ static BOOL preventRealCompletion = YES;
 	}
 }
 
-%new - (void)setupFlipBanner {
+%new - (void)setupTransitionBanner {
 
 	SBBannerContainerViewController * bcvc = [self presentedViewController];
 	SBBannerContextView * contextView = [bcvc bannerContextView];
 	CGRect baseRect = contextView.frame;
 
-	UIGraphicsBeginImageContextWithOptions(baseRect.size, NO, 0.0f);
 	contextView.alpha = 1;
-	//[contextView.layer renderInContext:UIGraphicsGetCurrentContext()];
-	UIImage * toImage = UIGraphicsGetImageFromCurrentImageContext();
-	//contextView.alpha = 0;
-	//[contextView drawViewHierarchyInRect:baseRect afterScreenUpdates:YES];
+	UIGraphicsBeginImageContextWithOptions([[UIApplication sharedApplication] keyWindow].bounds.size, NO, 0.0f);
 	[[[UIApplication sharedApplication] keyWindow].layer renderInContext:UIGraphicsGetCurrentContext()];
-	UIImage * fromImage = UIGraphicsGetImageFromCurrentImageContext();
-	NSLog(@"Image: %@", fromImage);
+	UIImage * toImage = UIGraphicsGetImageFromCurrentImageContext();
 	UIGraphicsEndImageContext();
+	contextView.alpha = 0;
 
-	if(!flipBanner)
-		flipBanner = [[UIView alloc] initWithFrame:baseRect];
+	transitionBanner = [[UIView alloc] initWithFrame:baseRect];
 
-	UIImageView * toIV = [[UIImageView alloc] initWithFrame:baseRect];
+	toIV = [[UIImageView alloc] initWithFrame:baseRect];
 	toIV.image = toImage;
 	toIV.contentMode = UIViewContentModeTopLeft;
 	toIV.clipsToBounds = YES;
 	contextView.alpha = 0;
 
-	UIImageView * fromIV = [[UIImageView alloc] initWithFrame:baseRect];
+	fromIV = [[UIImageView alloc] initWithFrame:baseRect];
 	fromIV.image = _UICreateScreenUIImage();
 	fromIV.contentMode = UIViewContentModeTopLeft;
 	fromIV.clipsToBounds = YES;
 
-	//[flipBanner addSubview:fromIV];
-	[flipBanner addSubview:toIV];
-	[fromIV release];
-	[toIV release];
-
-	[bcvc.view insertSubview:flipBanner atIndex:0];
+	[transitionBanner addSubview:fromIV];
+	[transitionBanner sendSubviewToBack:fromIV];
+	[bcvc.view insertSubview:transitionBanner atIndex:0];
 }
 
-%new - (void)displayFlipBanner {
-	return;
+%new - (void)displayTransitionBanner {
+
 	SBBannerContainerViewController * bcvc = [self presentedViewController];
 	SBBannerContextView * contextView = [bcvc bannerContextView];
 
-	[UIView transitionFromView:[[flipBanner subviews] objectAtIndex:0]
-						toView:[[flipBanner subviews] objectAtIndex:1]
-						duration:0.5f
-						options:UIViewAnimationOptionTransitionFlipFromBottom
+	[CATransaction flush];
+	[UIView setAnimationsEnabled:YES];
+	[UIView transitionFromView:fromIV
+						toView:toIV
+						duration:1.5f
+						options:UIViewAnimationOptionTransitionCurlUp
 						completion:^(BOOL finished)
 						{
-							/*flipBanner.alpha = 0;
-							contextView.alpha = 1;*/
-							NSLog(@"Flip completed");
-							[flipBanner removeFromSuperview];
+							NSLog(@"Transition completed");
+							transitionBanner.alpha = 0;
+							contextView.alpha = 1;
+							[toIV removeFromSuperview];
+							[fromIV removeFromSuperview];
+							[toIV release];
+							[fromIV release];
+							toIV = nil;
+							fromIV = nil;
+							[transitionBanner removeFromSuperview];
+							[transitionBanner release];
+							transitionBanner = nil;
 							preventRealCompletion = NO;
 							[self completeTransition:YES];
 						}];
 }
-
-
 
 %new - (void)setupAnimatedBanner {
 
 	SBBannerContainerViewController * bcvc = [self presentedViewController];
 	SBBannerContextView * contextView = [bcvc bannerContextView];
 	NSLog(@"Context: %@", contextView);
-	CGRect baseRect = CGRectMake(0,0,contextView.bounds.size.width,contextView.bounds.size.height);
+	CGRect baseRect = CGRectMake(0,0, contextView.bounds.size.width,contextView.bounds.size.height);
 
 	if(!newBanner)
 		newBanner = [[UIView alloc] init];
@@ -234,10 +262,28 @@ static BOOL preventRealCompletion = YES;
 	newBannerIV.image = [iconImageView image];
 
 	if([contextView respondsToSelector:@selector(testBlur)])
-		[self setBackdrop:[contextView testBlur]];
+		[self setBannerBackdrop:[contextView testBlur]];
 	else
 		[self setBackdrop:[contextView backdrop]];
 }
+
+%new - (void)setBannerBackdrop:(_UIBackdropView*)backdrop {
+	for (UIView * view in newBanner.subviews) {
+    	if([view isKindOfClass:[%c(_UIBackdropView) class]])
+    	{
+    		[view removeFromSuperview];
+    	}
+    }
+
+    NSLog(@"Current settings: %@", [backdrop inputSettings]);
+    NSLog(@"Current settings out: %@", [backdrop outputSettings]);
+    _UIBackdropView * blurView = [[_UIBackdropView alloc] initWithSettings:[backdrop inputSettings]];
+	[newBanner insertSubview:blurView atIndex:0];
+	NSLog(@"BlurView: %@", blurView);
+	NSLog(@"Tint: %@", [blurView colorMatrixColorTint]);
+	[blurView release];
+}
+
 
 %new -(void)displayAnimatedBanner {
 
@@ -347,23 +393,126 @@ static BOOL preventRealCompletion = YES;
 	}];
 }
 
-%new - (void)setBackdrop:(_UIBackdropView*)backdrop {
-	for (UIView * view in newBanner.subviews) {
-    	if([view isKindOfClass:[%c(_UIBackdropView) class]])
-    	{
-    		[view removeFromSuperview];
-    	}
-    }
+%new - (void)setupFlipBanner {
+
+	SBBannerContainerViewController * bcvc = [self presentedViewController];
+	SBBannerContextView * contextView = [bcvc bannerContextView];
+	CGRect baseRect = contextView.frame;
+	//baseRect = CGRectMake(320,0,320,68);
+	//contextView.frame = baseRect;
+
+	[bcvc.view.superview setHidden:YES];
+	contextView.alpha = 1;
+	UIGraphicsBeginImageContextWithOptions(baseRect.size, NO, 0.0f);
+	//[contextView drawViewHierarchyInRect:baseRect afterScreenUpdates:NO];
+	[[contextView _vibrantContentView].layer renderInContext:UIGraphicsGetCurrentContext()];
+	UIImage * toImage = UIGraphicsGetImageFromCurrentImageContext();
+	UIGraphicsEndImageContext();
+	//NSLog(@"Context frame: %@", NSStringFromCGRect(baseRect));
+	//UIImage * toImage = _UICreateScreenUIImage();
+	//UIView * snapShot = [contextView snapshotViewAfterScreenUpdates:NO];
+	contextView.alpha = 0;
+	[bcvc.view.superview setHidden:NO];
+
+	containerBanner = [[UIView alloc] initWithFrame:baseRect];
+	containerBanner.backgroundColor = [UIColor blackColor];
+
+	flipBanner = [[UIView alloc] initWithFrame:baseRect];
+	flipBanner.layer.masksToBounds = YES;
+	flipBanner.backgroundColor = [UIColor redColor];
+
+	toV = [[UIView alloc] initWithFrame:baseRect];
+
+	UIImageView * background = [[UIImageView alloc] initWithFrame:baseRect];
+	//[toV addSubview:background];
+
+	if([contextView respondsToSelector:@selector(testBlur)])
+		[self setViewBackdrop:[contextView testBlur]];
+	else
+		[self setViewBackdrop:[contextView backdrop]];
+
+	[[[toV subviews] objectAtIndex:0] addSubview:background];
+
+	toIV = [[UIImageView alloc] initWithFrame:baseRect];
+	toIV.image = toImage;
+	toIV.contentMode = UIViewContentModeTopLeft;
+	toIV.clipsToBounds = YES;
+
+	[toV addSubview:toIV];
+
+	fromIV = [[UIImageView alloc] initWithFrame:baseRect];
+	UIImage * curentScreen =  _UICreateScreenUIImage();
+	fromIV.image = curentScreen;
+	fromIV.contentMode = UIViewContentModeTopLeft;
+	fromIV.clipsToBounds = YES;
+
+	background.image = curentScreen;
+	background.contentMode = UIViewContentModeTopLeft;
+	background.clipsToBounds = YES;
+
+	[background release];
+	
+	//[flipBanner addSubview:snapShot];
+	[flipBanner addSubview:fromIV];
+	[containerBanner addSubview:flipBanner];
+	[bcvc.view insertSubview:containerBanner atIndex:0];
+}
+
+%new - (void)setViewBackdrop:(_UIBackdropView*)backdrop {
 
     NSLog(@"Current settings: %@", [backdrop inputSettings]);
     NSLog(@"Current settings out: %@", [backdrop outputSettings]);
     _UIBackdropView * blurView = [[_UIBackdropView alloc] initWithSettings:[backdrop inputSettings]];
-	[newBanner insertSubview:blurView atIndex:0];
+    blurView.layer.shouldRasterize = YES;
+	[toV addSubview:blurView];
 	NSLog(@"BlurView: %@", blurView);
 	NSLog(@"Tint: %@", [blurView colorMatrixColorTint]);
 	[blurView release];
 }
 
+%new - (void)displayFlipBanner {
+
+    [UIView setAnimationsEnabled:YES];
+    [CATransaction flush];
+
+	CATransition * transition = [CATransition animation];
+	transition.delegate = self;
+	transition.duration = 1;
+	transition.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionLinear];
+	transition.type = @"cube";
+	transition.subtype = kCATransitionFromBottom;
+	[flipBanner.layer addAnimation:transition forKey:nil];
+	[flipBanner addSubview:toV];
+}
+
+%new - (void)animationDidStop:(CAAnimation*)theAnimation finished:(BOOL)finished {
+
+	if(finished)
+	{
+		SBBannerContainerViewController * bcvc = [self presentedViewController];
+		SBBannerContextView * contextView = [bcvc bannerContextView];
+
+		flipBanner.alpha = 0;
+		contextView.alpha = 1;
+		[toIV removeFromSuperview];
+		[fromIV removeFromSuperview];
+		[toIV release];
+		[fromIV release];
+		toIV = nil;
+		fromIV = nil;
+		[toV removeFromSuperview];
+		[toV release];
+		toV = nil;
+		[flipBanner removeFromSuperview];
+		[flipBanner release];
+		flipBanner = nil;
+		[containerBanner removeFromSuperview];
+		[containerBanner release];
+		containerBanner = nil;
+		preventRealCompletion = NO;
+		[self completeTransition:YES];
+	}
+}
 
 -(id)containerView {
 	id orig = %orig;
@@ -571,7 +720,7 @@ NSLog(@"setPresentingViewController: %@", arg);
 
 %hook SBBannerContextView
 -(void)_layoutContentView {
-	NSLog(@"_layoutContentViewt");
+	NSLog(@"_layoutContentView");
 	%orig;
 }
 
