@@ -19,6 +19,8 @@ typedef enum {
 @interface SBBannerContextView : UIView
 -(CGRect)frame;
 -(UIView*)_vibrantContentView;
+-(UIView*)testBlur;
+-(UIView*)backdrop;
 @end
 
 @interface SBDefaultBannerView : UIView
@@ -331,94 +333,55 @@ static BOOL preventRealCompletion = YES;
 	SBBannerContainerViewController * bcvc = [self presentedViewController];
 	SBBannerContextView * contextView = [bcvc bannerContextView];
 	CGRect baseRect = contextView.frame;
-	[bcvc.view.superview setHidden:YES];
 
-	// Temporarily unhide the banner so that we can capture an image of it
-	contextView.alpha = 1;
-
-	// The backdrop does not like to render correctly, shows up as solid black.
-	// Thus we will have to get crafty. Hide the backdrop so that we get an image
-	// with transparency containing the icon, the time, and the grabber. We then
-	// will create our own _UIBackdropView and overlay the previous image. 
-	// Better solutions? Probably, have to do more experimenting. Could it be as easy as
-	// grabbing the original bannercontextview and adding it to a new view? Probably(help?).
-	if([contextView respondsToSelector:@selector(testBlur)])
-		[[contextView testBlur] setHidden:YES];
-	else
-		[[contextView backdrop] setHidden:YES];
-
-	UIGraphicsBeginImageContextWithOptions(baseRect.size, NO, 0.0f);
-	[contextView.layer renderInContext:UIGraphicsGetCurrentContext()];
-	UIImage * toImage = UIGraphicsGetImageFromCurrentImageContext();
-	UIGraphicsEndImageContext();
-
-	if([contextView respondsToSelector:@selector(testBlur)])
-		[[contextView testBlur] setHidden:NO];
-	else
-		[[contextView backdrop] setHidden:NO];
-
-	contextView.alpha = 0;
-	[bcvc.view.superview setHidden:NO];
-
+	//We need a container for the banner because we want to have a black
+	//background for when a 3D transition effect is applied
 	containerBanner = [[UIView alloc] initWithFrame:baseRect];
 	containerBanner.backgroundColor = [UIColor blackColor];
 
 	transitionBanner = [[UIView alloc] initWithFrame:baseRect];
 	transitionBanner.layer.masksToBounds = YES;
 
-	// Crafting the view we are going to is hard because its hidden.
-	// Thus we have to create it before we actually display it.
-	// This consists of taking a screenshot of the current screen
-	// and recreating the banner on top of it.
 	toView = [[UIView alloc] initWithFrame:baseRect];
 
-	// Background will contain a picture of the current banner area with the
-	// _UIBackdropView added as an overlay.
-	background = [[UIImageView alloc] initWithFrame:baseRect];
-	[toView addSubview:background];
+	// Background will contain a picture of the current banner area(similar to fromIV below).
+	// It isn't necessary here but keeping it in case I do want to use it
+	// and don't want to rewrite the code.
+	//background = [[UIImageView alloc] initWithFrame:baseRect];
+	//[toView addSubview:background];
 
-	// toIV will contain the picture of the top level content of the banner, such as the icon,
-	// title, message, etc. The rest of the image is transparent.
-	toIV = [[UIImageView alloc] initWithFrame:baseRect];
-	toIV.image = toImage;
-	toIV.contentMode = UIViewContentModeTopLeft;
-	toIV.clipsToBounds = YES;
+	[toView addSubview:contextView];
+	contextView.alpha = 1;
 
-	[toView addSubview:toIV];
+	if([contextView respondsToSelector:@selector(testBlur)])
+	{
+		//Using [UIScreen mainScreen].scale as the scale value makes the backdrop half visible. Why???
+		[contextView testBlur].layer.shouldRasterize = YES;
+		[contextView testBlur].layer.rasterizationScale = 1.5;
+	}
+	else
+	{
+		[contextView backdrop].layer.shouldRasterize = YES;
+		[contextView backdrop].layer.rasterizationScale = 1.5;
+	}
+
+
+	UIImage * curentScreen =  _UICreateScreenUIImage();
 
 	// fromIV is just a snapshot of the current banner area(no banner is currently visible)
 	fromIV = [[UIImageView alloc] initWithFrame:baseRect];
-	UIImage * curentScreen =  _UICreateScreenUIImage();
 	fromIV.image = curentScreen;
 	fromIV.contentMode = UIViewContentModeTopLeft;
 	fromIV.clipsToBounds = YES;
 
-	background.image = curentScreen;
-	background.contentMode = UIViewContentModeTopLeft;
-	background.clipsToBounds = YES;
-
-	if([contextView respondsToSelector:@selector(testBlur)])
-		[self setViewBackdrop:[contextView testBlur]];
-	else
-		[self setViewBackdrop:[contextView backdrop]];
-
-	[background release];
+	//background.image = curentScreen;
+	//background.contentMode = UIViewContentModeTopLeft;
+	//background.clipsToBounds = YES;
+	//[background release];
 	
 	[transitionBanner addSubview:fromIV];
 	[containerBanner addSubview:transitionBanner];
 	[bcvc.view insertSubview:containerBanner atIndex:0];
-}
-
-%new - (void)setViewBackdrop:(_UIBackdropView*)backdrop {
-
-    NSLog(@"Current settings: %@", [backdrop inputSettings]);
-    NSLog(@"Current settings out: %@", [backdrop outputSettings]);
-    _UIBackdropView * blurView = [[_UIBackdropView alloc] initWithSettings:[backdrop inputSettings]];
-    blurView.layer.shouldRasterize = YES;
-	[background addSubview:blurView];
-	NSLog(@"BlurView: %@", blurView);
-	NSLog(@"Tint: %@", [blurView colorMatrixColorTint]);
-	[blurView release];
 }
 
 %new - (void)displayTransitionBanner {
@@ -430,8 +393,8 @@ static BOOL preventRealCompletion = YES;
 	transition.delegate = self;
 	transition.duration = 1;
 	transition.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionLinear];
-	transition.type = @"alignedCube";
-	transition.subtype = kCATransitionFromRight;
+	transition.type = @"cube";
+	transition.subtype = kCATransitionFromBottom;
 	[transitionBanner.layer addAnimation:transition forKey:nil];
 	[transitionBanner addSubview:toView];
 }
@@ -443,12 +406,21 @@ static BOOL preventRealCompletion = YES;
 		SBBannerContainerViewController * bcvc = [self presentedViewController];
 		SBBannerContextView * contextView = [bcvc bannerContextView];
 
-		//Hide our fake banner and show the real one. In a perfect world this would be seamless to the user.
+		// If we set rasterize to no, there will be a flickr effect. Without rasterization
+		//the _UIBackdrop view is rendered incorrectly during the transition. Any ideas?
+
+		/*if([contextView respondsToSelector:@selector(testBlur)])
+			[contextView testBlur].layer.shouldRasterize = NO;
+		else
+			[contextView backdrop].layer.shouldRasterize = NO;*/
+
+		// Re add the contextview to its original container
+		[bcvc.view addSubview:contextView];
+
+		//This should be seamless to the user.
 		containerBanner.alpha = 0;
-		contextView.alpha = 1;
-		[toIV release];
+
 		[fromIV release];
-		toIV = nil;
 		fromIV = nil;
 		[toView release];
 		toView = nil;
