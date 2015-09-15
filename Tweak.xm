@@ -53,10 +53,10 @@ typedef enum {
 
 @end
 
-static UIView * newBanner = nil;
+static UIView * animatedBanner = nil;
 static UIView * transitionBanner = nil;
 static UIView * containerBanner = nil;
-static UIImageView * newBannerIV = nil;
+static UIImageView * animatedBannerIV = nil;
 static UIImageView * fromIV = nil;
 static UIImageView * toIV = nil;
 static UIImageView * background = nil;
@@ -86,7 +86,7 @@ static BOOL preventRealCompletion = YES;
 	}
 	else if(preventRealCompletion)
 	{
-		int style = 3;
+		int style = 4;
 		if( style == 0 || style == 1 || style == 2 )
 		{
 			[self displayStaticBanner:style];
@@ -162,29 +162,33 @@ static BOOL preventRealCompletion = YES;
 
 	SBBannerContainerViewController * bcvc = [self presentedViewController];
 	SBBannerContextView * contextView = [bcvc bannerContextView];
+	SBDefaultBannerView * defaultBanner = [contextView _vibrantContentView];
 	NSLog(@"Context: %@", contextView);
 	CGRect baseRect = CGRectMake(0,0, contextView.bounds.size.width,contextView.bounds.size.height);
 
-	if(!newBanner)
-		newBanner = [[UIView alloc] init];
+	if(!animatedBanner)
+		animatedBanner = [[UIView alloc] initWithFrame:baseRect];
 
-	newBanner.frame = baseRect;
+	animatedBanner.alpha = 0.3;
+	contextView.alpha = 1;
+	[animatedBanner addSubview:contextView];
 
-	newBanner.alpha = 0.3;
+	//Hide everything but the banner backdrop
+	defaultBanner.alpha = 0;
+	UIView * grabber = MSHookIvar<UIView*>(contextView, "_grabberView");
+	grabber.alpha = 0;
 
-	if(!newBannerIV)
-		newBannerIV = [[UIImageView alloc] init];
+	if(!animatedBannerIV)
+		animatedBannerIV = [[UIImageView alloc] init];
 
-	[newBanner addSubview:newBannerIV];
-	[bcvc.view insertSubview:newBanner atIndex:0];
+	[animatedBanner addSubview:animatedBannerIV];
 
-	SBDefaultBannerView  * def = [contextView  _vibrantContentView];
-	UIImageView  * iconImageView = MSHookIvar<UIImageView*>(def,"_iconImageView");
+	UIImageView  * iconImageView = MSHookIvar<UIImageView*>(defaultBanner,"_iconImageView");
 	CGRect oldFrame = [iconImageView frame];
 
-	if(!CGRectEqualToRect(contextView.frame,def.frame))
+	if(!CGRectEqualToRect(contextView.frame,defaultBanner.frame))
 	{
-		CGRect currentFrame = [def _contentFrame];
+		CGRect currentFrame = [defaultBanner _contentFrame];
 		CGFloat half = baseRect.size.width/2;
 		CGFloat start = half - currentFrame.size.width/2;
 		defaultIconFrame = CGRectMake(start, oldFrame.origin.y, oldFrame.size.width, oldFrame.size.height);
@@ -194,49 +198,28 @@ static BOOL preventRealCompletion = YES;
 
 	CGRect centerRect = CGRectMake(baseRect.size.width/2 - oldFrame.size.width/2, baseRect.size.height/2 - oldFrame.size.height/2, oldFrame.size.width, oldFrame.size.height);
 	NSLog(@"centerRect: %@", NSStringFromCGRect(centerRect));
-	newBannerIV.frame = centerRect;
-	newBannerIV.image = [iconImageView image];
+	animatedBannerIV.frame = centerRect;
+	animatedBannerIV.image = [iconImageView image];
 
-	if([contextView respondsToSelector:@selector(testBlur)])
-		[self setBannerBackdrop:[contextView testBlur]];
-	else
-		[self setBackdrop:[contextView backdrop]];
+	[bcvc.view insertSubview:animatedBanner atIndex:0];
 }
-
-%new - (void)setBannerBackdrop:(_UIBackdropView*)backdrop {
-	for (UIView * view in newBanner.subviews) {
-    	if([view isKindOfClass:[%c(_UIBackdropView) class]])
-    	{
-    		[view removeFromSuperview];
-    	}
-    }
-
-    NSLog(@"Current settings: %@", [backdrop inputSettings]);
-    NSLog(@"Current settings out: %@", [backdrop outputSettings]);
-    _UIBackdropView * blurView = [[_UIBackdropView alloc] initWithSettings:[backdrop inputSettings]];
-	[newBanner insertSubview:blurView atIndex:0];
-	NSLog(@"BlurView: %@", blurView);
-	NSLog(@"Tint: %@", [blurView colorMatrixColorTint]);
-	[blurView release];
-}
-
 
 %new -(void)displayAnimatedBanner {
 
 	NSLog(@"Displaying banner");
 
-	CGRect maskRect = CGRectMake(newBanner.bounds.size.width/2 - newBanner.bounds.size.height/2, 0, newBanner.bounds.size.height, newBanner.bounds.size.height);
+	CGRect maskRect = CGRectMake(animatedBanner.bounds.size.width/2 - animatedBanner.bounds.size.height/2, 0, animatedBanner.bounds.size.height, animatedBanner.bounds.size.height);
 	NSLog(@"Mask Rect: %@", NSStringFromCGRect(maskRect));
 
 	CAShapeLayer * layerMask = [CAShapeLayer layer];
 	layerMask.fillColor = [UIColor blackColor].CGColor;
 	CGMutablePathRef path = CGPathCreateMutable();
 
-	int style = 2;
+	int style = 0;
 
 	if(style==0) //circle
 	{
-		layerMask.path = [UIBezierPath bezierPathWithRoundedRect:maskRect cornerRadius:newBanner.bounds.size.height].CGPath;
+		layerMask.path = [UIBezierPath bezierPathWithRoundedRect:maskRect cornerRadius:animatedBanner.bounds.size.height].CGPath;
 	}
 	else if (style == 1) //square
 	{
@@ -267,22 +250,22 @@ static BOOL preventRealCompletion = YES;
 	}
 
 	layerMask.anchorPoint = CGPointMake(0.5,0.5);
-	layerMask.frame = CGRectMake(0,0,68,68);
-	layerMask.bounds = CGRectMake(0,0,68,68);
-	newBanner.layer.mask = layerMask;
-	newBanner.transform = CGAffineTransformMakeScale(0.1,0.1);
+	layerMask.frame = maskRect;
+	layerMask.bounds = animatedBanner.bounds;
+	animatedBanner.layer.mask = layerMask;
+	animatedBanner.transform = CGAffineTransformMakeScale(0.1,0.1);
 
 	[UIView setAnimationsEnabled:YES];
 	[UIView animateWithDuration:0.30 delay:0 usingSpringWithDamping:0.5 initialSpringVelocity:0.0f options:0 animations:^{
-		newBanner.transform = CGAffineTransformMakeScale(0.8,0.8);
-		newBanner.alpha = 1;
+		animatedBanner.transform = CGAffineTransformMakeScale(0.8,0.8);
+		animatedBanner.alpha = 1;
 	} completion:^(BOOL completed){
 
 		if(completed)
 		{
 			NSLog(@"Completed animation 1");
-			newBanner.transform = CGAffineTransformIdentity;
-			newBanner.layer.transform = CATransform3DIdentity;
+			animatedBanner.transform = CGAffineTransformIdentity;
+			animatedBanner.layer.transform = CATransform3DIdentity;
 			
 			CGPathRelease(path);
 
@@ -290,8 +273,9 @@ static BOOL preventRealCompletion = YES;
 			[CATransaction begin];
 			layerMask.transform = CATransform3DIdentity;
 			layerMask.anchorPoint = CGPointMake(0.5,0.5);
-			layerMask.frame = newBanner.frame;
-			NSLog(@"center: %@", NSStringFromCGPoint(newBanner.layer.position));
+			layerMask.frame = animatedBanner.frame;
+			layerMask.transform = CATransform3DMakeScale(0.8, 0.8, 1);
+			NSLog(@"center: %@", NSStringFromCGPoint(animatedBanner.layer.position));
 
 			CABasicAnimation * anim = [CABasicAnimation animationWithKeyPath:@"transform.scale"];
 			CATransform3D tr = CATransform3DIdentity;
@@ -305,7 +289,7 @@ static BOOL preventRealCompletion = YES;
 				
 			}];
 
-			[newBanner.layer.mask addAnimation:anim forKey:@"scale"];
+			[animatedBanner.layer.mask addAnimation:anim forKey:@"scale"];
 			[CATransaction commit];
 
 			/*return;
@@ -313,14 +297,20 @@ static BOOL preventRealCompletion = YES;
 			[self completeTransition:YES];*/
 
 			[UIView animateWithDuration:0.30f delay:0.0 options:UIViewAnimationOptionCurveEaseIn animations:^{
-				newBannerIV.frame = defaultIconFrame;
+				animatedBannerIV.frame = defaultIconFrame;
 			}
 			completion:^(BOOL finished) {
 				NSLog(@"center: %@", NSStringFromCGPoint(layerMask.position));
-				newBanner.alpha = 0;
+				
 				SBBannerContainerViewController * bcvc = [self presentedViewController];
-				[bcvc bannerContextView].alpha = 1;
-				[newBanner removeFromSuperview];
+				SBBannerContextView * contextView = [bcvc bannerContextView];
+
+				[bcvc.view addSubview:contextView];
+				[contextView _vibrantContentView].alpha = 1;
+				UIView * grabber = MSHookIvar<UIView*>(contextView, "_grabberView");
+				grabber.alpha = 1;
+
+				[animatedBanner removeFromSuperview];
 				preventRealCompletion = NO;
 				[self completeTransition:YES];
 			}];
