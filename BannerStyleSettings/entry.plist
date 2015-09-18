@@ -1,0 +1,10 @@
+{
+    entry = {
+	bundle = BannerStyleSettings;
+	cell = PSLinkCell;
+	detail = BannerStyleSettingsListController;
+	icon = BannerStyleSettings.png;
+	isController = 1;
+	label = BannerStyle;
+    };
+}

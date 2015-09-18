@@ -1,7 +1,9 @@
+#import <substrate.h>
 #import <UIKit/UIKit.h>
 #import <CoreGraphics/CoreGraphics.h>
-#import <substrate.h>
-#include "InspCWrapper.m"
+#import <Quartzcore/Quartzcore.h>
+//#include "InspCWrapper.m"
+#include "MGFashionMenuView.h"
 
 extern "C" UIImage * _UICreateScreenUIImage();
 
@@ -32,25 +34,31 @@ typedef enum {
 -(UIViewController*)_bannerViewController;
 @end
 
-@interface _SBBulletinRootViewControllerTransitionContext
--(UIView*)containerView;
-@end
-
-@interface _UIBackdropView : UIView
-@end
-
 @interface SBBannerContainerViewController : UIViewController
--(CGFloat)transitionDuration:(_SBBulletinRootViewControllerTransitionContext*)tc;
+-(CGFloat)transitionDuration:(id)tc;
 -(UIView*)bannerContextView;
 @end
 
-@implementation CALayer (NPAnchorPosition)
+@interface _SBBulletinRootViewControllerTransitionContext
+-(UIView*)containerView;
+-(SBBannerContainerViewController*)presentedViewController;
+-(void)completeTransition:(BOOL)b;
+-(BOOL)isPresenting;
+-(void)setupAnimatedBanner;
+-(void)setupTransitionBanner;
+-(void)setupFashionMenuBanner;
+-(void)displayAnimatedBanner;
+-(void)displayStaticBanner:(NSInteger)val;
+-(void)displayTransitionBanner;
+-(void)displayFashionMenuBanner;
+@end
 
-- (void)setAnchorPointWhileMaintainingPosition:(CGPoint)anchorPoint {
-    [self setAnchorPoint:anchorPoint];
-    [self setPosition:CGPointMake(self.position.x + self.bounds.size.width * (self.anchorPoint.x - 0.5), self.position.y + self.bounds.size.height * (self.anchorPoint.y - 0.5))];
-}
+@interface SBBulletinBannerController
+-(id)sharedInstance;
++(void)_showTestBanner:(BOOL)val;
+@end
 
+@interface _UIBackdropView : UIView
 @end
 
 static UIView * animatedBanner = nil;
@@ -61,6 +69,7 @@ static UIImageView * fromIV = nil;
 static UIImageView * toIV = nil;
 static UIImageView * background = nil;
 static UIView * toView = nil;
+static MGFashionMenuView * menuView = nil;
 static SBBannerContainerView * container = nil;
 static SBBannerContextView * bannerContext = nil;
 static CGRect defaultIconFrame;
@@ -69,6 +78,10 @@ static BOOL displayingBanner = NO;
 static BOOL inCompletion = NO;
 static _UIBackdropView * backDrop = nil;
 static BOOL preventRealCompletion = YES;
+
+static BOOL enabled = NO;
+static NSInteger direction = 0;
+static NSInteger bannerStyle = 0;
 
 %hook _SBBulletinRootViewControllerTransitionContext
 
@@ -80,26 +93,30 @@ static BOOL preventRealCompletion = YES;
 -(void)completeTransition:(BOOL)b {
 
 	NSLog(@"compTr: %ld", b);
-	if(![self isPresenting])
+	if(![self isPresenting] || !enabled)
 	{
 		%orig;
 	}
 	else if(preventRealCompletion)
 	{
-		int style = 4;
-		if( style == 0 || style == 1 || style == 2 )
+		if( bannerStyle == 0)
 		{
-			[self displayStaticBanner:style];
+			[self displayStaticBanner:direction];
 		}
-		else if(style == 3)
+		else if( bannerStyle > 0 && bannerStyle < 15)
 		{
 			[self setupTransitionBanner];
 			[self displayTransitionBanner];
 		}
-		else if(style == 4)
+		else if( bannerStyle == 15)
 		{
 			[self setupAnimatedBanner];
 			[self displayAnimatedBanner];
+		}
+		else if( bannerStyle > 15)
+		{
+			[self setupFashionMenuBanner];
+			[self displayFashionMenuBanner];
 		}
 	}
 	else
@@ -109,28 +126,16 @@ static BOOL preventRealCompletion = YES;
 	}
 }
 
-%new - (void)displayStaticBanner:(NSInteger)position
+%new - (void)displayStaticBanner:(NSInteger)direction
 {
 	SBBannerContainerViewController * bcvc = [self presentedViewController];
 	SBBannerContextView * contextView = [bcvc bannerContextView];
 	CGRect baseRect = contextView.frame;
 
-	switch (position)
+	switch (direction)
 	{
 		case 0:
-			contextView.frame = CGRectMake(baseRect.size.width, baseRect.origin.y, baseRect.size.width, baseRect.size.height);
-			contextView.alpha = 1;
-
-			[UIView animateWithDuration:0.40f delay:0.0 options:UIViewAnimationOptionCurveEaseIn animations:^{
-				contextView.frame = baseRect;
-			}
-			completion:^(BOOL finished) {
-				preventRealCompletion = NO;
-				[self completeTransition:YES];
-			}];
-		break;
-
-		case 1:
+		{
 			contextView.frame = CGRectMake(-baseRect.size.width, baseRect.origin.y, baseRect.size.width, baseRect.size.height);
 			contextView.alpha = 1;
 
@@ -141,9 +146,44 @@ static BOOL preventRealCompletion = YES;
 				preventRealCompletion = NO;
 				[self completeTransition:YES];
 			}];
+
 		break;
+		}
+
+		case 1:
+		{
+			contextView.frame = CGRectMake(baseRect.size.width, baseRect.origin.y, baseRect.size.width, baseRect.size.height);
+			contextView.alpha = 1;
+
+			[UIView animateWithDuration:0.40f delay:0.0 options:UIViewAnimationOptionCurveEaseIn animations:^{
+				contextView.frame = baseRect;
+			}
+			completion:^(BOOL finished) {
+				preventRealCompletion = NO;
+				[self completeTransition:YES];
+			}];
+
+		break;
+		}
 
 		case 2:
+		{
+			contextView.frame = CGRectMake(baseRect.origin.x, -baseRect.size.height, baseRect.size.width, baseRect.size.height);
+			contextView.alpha = 1;
+
+			[UIView animateWithDuration:0.40f delay:0.0 options:UIViewAnimationOptionCurveEaseIn animations:^{
+				contextView.frame = baseRect;
+			}
+			completion:^(BOOL finished) {
+				preventRealCompletion = NO;
+				[self completeTransition:YES];
+			}];
+
+		break;
+		}
+
+		case 3:
+		{
 			contextView.frame = CGRectMake(baseRect.origin.x, [UIScreen mainScreen].bounds.size.height, baseRect.size.width, baseRect.size.height);
 			contextView.alpha = 1;
 
@@ -154,8 +194,42 @@ static BOOL preventRealCompletion = YES;
 				preventRealCompletion = NO;
 				[self completeTransition:YES];
 			}];
+
 		break;
+		}
 	}
+}
+
+%new - (void)setupFashionMenuBanner {
+
+	SBBannerContainerViewController * bcvc = [self presentedViewController];
+	SBBannerContextView * contextView = [bcvc bannerContextView];
+
+	CGRect baseRect = CGRectMake(0,0, contextView.bounds.size.width,contextView.bounds.size.height);
+
+	if(!animatedBanner)
+		animatedBanner = [[UIView alloc] initWithFrame:baseRect];
+
+	[animatedBanner addSubview:contextView];
+	contextView.alpha = 1;
+
+	menuView = [[MGFashionMenuView alloc] initWithMenuView:animatedBanner withStyle:bannerStyle-16];
+
+	[bcvc.view insertSubview:menuView atIndex:0];
+}
+
+%new - (void)displayFashionMenuBanner {
+	  [menuView showWithCompletition:^{
+
+	  		SBBannerContainerViewController * bcvc = [self presentedViewController];
+			SBBannerContextView * contextView = [bcvc bannerContextView];
+			[bcvc.view addSubview:contextView];
+			animatedBanner = nil;
+	  		[menuView removeFromSuperview];
+	  		menuView = nil;
+  			preventRealCompletion = NO;
+			[self completeTransition:YES];
+	  }];
 }
 
 %new - (void)setupAnimatedBanner {
@@ -311,6 +385,7 @@ static BOOL preventRealCompletion = YES;
 				grabber.alpha = 1;
 
 				[animatedBanner removeFromSuperview];
+				animatedBanner = nil;
 				preventRealCompletion = NO;
 				[self completeTransition:YES];
 			}];
@@ -376,6 +451,9 @@ static BOOL preventRealCompletion = YES;
 
 %new - (void)displayTransitionBanner {
 
+	NSString * types[14] = {@"moveIn", @"push", @"reveal", @"pageCurl", @"pageUnCurl", @"cube", @"alignedCube", @"flip", @"alignedFlip", @"oglFlip", @"cameraIris", @"rippleEffect", @"rotate", @"suckEffect"};
+	NSString * subtypes[4] = {kCATransitionFromLeft, kCATransitionFromRight, kCATransitionFromTop, kCATransitionFromBottom };
+
     [UIView setAnimationsEnabled:YES];
     [CATransaction flush];
 
@@ -383,8 +461,11 @@ static BOOL preventRealCompletion = YES;
 	transition.delegate = self;
 	transition.duration = 1;
 	transition.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionLinear];
-	transition.type = @"cube";
-	transition.subtype = kCATransitionFromBottom;
+	transition.type = types[bannerStyle -1];
+
+	if( direction != -1)
+		transition.subtype = subtypes[direction];
+
 	[transitionBanner.layer addAnimation:transition forKey:nil];
 	[transitionBanner addSubview:toView];
 }
@@ -410,14 +491,10 @@ static BOOL preventRealCompletion = YES;
 		//This should be seamless to the user.
 		containerBanner.alpha = 0;
 
-		[fromIV release];
 		fromIV = nil;
-		[toView release];
 		toView = nil;
-		[transitionBanner release];
 		transitionBanner = nil;
 		[containerBanner removeFromSuperview];
-		[containerBanner release];
 		containerBanner = nil;
 		preventRealCompletion = NO;
 		[self completeTransition:YES];
@@ -428,11 +505,6 @@ static BOOL preventRealCompletion = YES;
 	id orig = %orig;
 	NSLog(@"conV: %@", orig);
 	return orig;
-}
-
--(void)dealloc {
-	%orig;
-	NSLog(@"deall");
 }
 
 -(id)dismissalCompletion {
@@ -557,6 +629,9 @@ static BOOL preventRealCompletion = YES;
 	%orig;
 	NSLog(@"Original animation should have ended.");
 
+	if(!enabled)
+		return;
+
 	// Only perform actions if we are going to be presenting the banner to the user
 	if(![tc isPresenting])
 		return;
@@ -572,6 +647,9 @@ static BOOL preventRealCompletion = YES;
 	CGFloat orig = %orig;
 	NSLog(@"transitionDuration arg: %@ dur: %f", tc, orig);
 
+	if(!enabled)
+		return orig;
+
 	if([tc isPresenting])
 		return 0;
 	else
@@ -579,3 +657,46 @@ static BOOL preventRealCompletion = YES;
 }
 
 %end
+
+static void loadPrefs() 
+{
+	NSLog(@"Loading BannerStyle prefs");
+    CFPreferencesAppSynchronize(CFSTR("com.joshdoctors.bannerstyle"));
+
+    enabled = !CFPreferencesCopyAppValue(CFSTR("enabled"), CFSTR("com.joshdoctors.bannerstyle")) ? NO : [(__bridge id)CFPreferencesCopyAppValue(CFSTR("enabled"), CFSTR("com.joshdoctors.bannerstyle")) boolValue];
+    if (enabled) {
+        NSLog(@"[BannerStyle] We are enabled");
+    } else {
+        NSLog(@"[BannerStyle] We are NOT enabled");
+    }
+
+    bannerStyle = !CFPreferencesCopyAppValue(CFSTR("bannerStyle"), CFSTR("com.joshdoctors.bannerstyle")) ? 0 : [(__bridge id)CFPreferencesCopyAppValue(CFSTR("bannerStyle"), CFSTR("com.joshdoctors.bannerstyle")) intValue];
+    direction = !CFPreferencesCopyAppValue(CFSTR("direction"), CFSTR("com.joshdoctors.bannerstyle")) ? 0 : [(__bridge id)CFPreferencesCopyAppValue(CFSTR("direction"), CFSTR("com.joshdoctors.bannerstyle")) intValue];
+
+    if (bannerStyle > 10 )
+    	direction = -1;
+}
+
+static void showTestBanner()
+{
+	[[%c(SBBulletinBannerController) sharedInstance] _showTestBanner:YES];
+}
+
+%ctor
+{
+	NSLog(@"Loading BannerStyle");
+	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(),
+                                NULL,
+                                (CFNotificationCallback)loadPrefs,
+                                CFSTR("com.joshdoctors.bannerstyle/settingschanged"),
+                                NULL,
+                                CFNotificationSuspensionBehaviorDeliverImmediately);
+
+	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(),
+                                NULL,
+                                (CFNotificationCallback)showTestBanner,
+                                CFSTR("com.joshdoctors.bannerstyle/showtestbanner"),
+                                NULL,
+                                CFNotificationSuspensionBehaviorDeliverImmediately);
+	loadPrefs();
+}

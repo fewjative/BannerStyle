@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>items</key>
+	<array>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>BannerStyle</string>
+		</dict>
+		<dict>
+			<key>PostNotification</key>
+			<string>com.joshdoctors.bannerstyle/settingschanged</string>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.joshdoctors.bannerstyle</string>
+			<key>key</key>
+			<string>enabled</string>
+			<key>label</key>
+			<string>Enable Tweak</string>
+		</dict>
+		<dict>
+			<key>PostNotification</key>
+			<string>com.joshdoctors.bannerstyle/settingschanged</string>
+			<key>cell</key>  		<string>PSLinkListCell</string>
+			<key>defaults</key> 	<string>com.joshdoctors.bannerstyle</string>
+ 			<key>detail</key> 		<string>PSListItemsController</string>
+ 			<key>key</key> 			<string>bannerStyle</string>
+ 			<key>label</key> 		<string>Banner Styles</string>
+ 			<key>validTitles</key> <array>
+ 				<string>Slide</string>
+ 				<string>Move In</string>
+ 				<string>Push</string>
+ 				<string>Reveal</string>
+ 				<string>Page Curl</string>
+ 				<string>Page UnCurl</string>
+ 				<string>Cube</string>
+ 				<string>Aligned Cube</string>
+ 				<string>Flip</string>
+ 				<string>Aligned Flip</string>
+ 				<string>OGL Flip</string>
+ 				<string>Camera Iris</string>
+ 				<string>Ripple</string>
+ 				<string>Rotate</string>
+ 				<string>Suck</string>
+ 				<string>Material</string>
+ 				<string>Soft Bounce</string>
+ 				<string>Hard Bounce</string>
+ 				<string>Fluid Bounce</string>
+ 				<string>Fluid Soft Bounce</string>
+ 				<string>Fluid Hard Bounce</string>
+ 				<string>Fluid Wave</string>
+ 			</array>
+ 			<key>validValues</key>
+ 			<array>
+				<real>0</real>
+ 				<real>1</real>
+ 				<real>2</real>
+ 				<real>3</real>
+ 				<real>4</real>
+ 				<real>5</real>
+ 				<real>6</real>
+ 				<real>7</real>
+ 				<real>8</real>
+ 				<real>9</real>
+ 				<real>10</real>
+ 				<real>11</real>
+ 				<real>12</real>
+ 				<real>13</real>
+ 				<real>14</real>
+ 				<real>15</real>
+ 				<real>16</real>
+ 				<real>17</real>
+ 				<real>18</real>
+ 				<real>19</real>
+ 				<real>20</real>
+ 				<real>21</real>
+ 			</array>
+ 			<key>id</key>
+			<string>bannerStyleList</string>
+		</dict>
+		<dict>
+            <key>cell</key>
+            <string>PSButtonCell</string>
+            <key>id</key>
+			<string>showTestBannerButton</string>
+            <key>action</key>
+            <string>showTestBanner</string>
+            <key>label</key>
+            <string>Test Banner</string>
+        </dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>About</string>
+		</dict>
+		<dict>
+			<key>action</key>
+			<string>twitter</string>
+			<key>alignment</key>
+			<string>center</string>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>@Fewjative</string>
+		</dict>
+	</array>
+	<key>title</key>
+	<string>Options</string>
+</dict>
+</plist>
