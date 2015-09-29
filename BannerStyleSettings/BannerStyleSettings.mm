@@ -3,7 +3,8 @@
 #import <Social/SLServiceTypes.h>
 #import <UIKit/UIKit.h>
 
-static NSInteger bannerStyle = 0;
+static NSInteger incomingBannerStyle = 0;
+static NSInteger outgoingBannerStyle = 0;
 
 @interface BannerStyleSettingsListController: PSEditableListController {
 }
@@ -16,13 +17,26 @@ static NSInteger bannerStyle = 0;
 - (id)specifiers {
 	if(_specifiers == nil) {
 
-		bannerStyle = (!CFPreferencesCopyAppValue(CFSTR("bannerStyle"), CFSTR("com.joshdoctors.bannerstyle")) ? 0 : [(id)CFPreferencesCopyAppValue(CFSTR("bannerStyle"), CFSTR("com.joshdoctors.bannerstyle")) intValue]);
+		incomingBannerStyle = (!CFPreferencesCopyAppValue(CFSTR("incomingBannerStyle"), CFSTR("com.joshdoctors.bannerstyle")) ? 0 : [(id)CFPreferencesCopyAppValue(CFSTR("incomingBannerStyle"), CFSTR("com.joshdoctors.bannerstyle")) intValue]);
+		outgoingBannerStyle = (!CFPreferencesCopyAppValue(CFSTR("outgoingBannerStyle"), CFSTR("com.joshdoctors.bannerstyle")) ? 0 : [(id)CFPreferencesCopyAppValue(CFSTR("outgoingBannerStyle"), CFSTR("com.joshdoctors.bannerstyle")) intValue]);
 
-        if(bannerStyle > 10)
-            _specifiers = [[self loadSpecifiersFromPlistName:@"BannerStyleSettingsWithoutDirection" target:self] retain];
-        else
-            _specifiers = [[self loadSpecifiersFromPlistName:@"BannerStyleSettingsWithDirection" target:self] retain];
+		NSLog(@"in/out: %d %d", incomingBannerStyle, outgoingBannerStyle);
+		if(incomingBannerStyle > 10 && outgoingBannerStyle > 10)
+		{
+			_specifiers = [[self loadSpecifiersFromPlistName:@"BannerStyleSettingsNoDirection" target:self] retain];
+		}
+		else if(incomingBannerStyle > 10)
+		{
+			_specifiers = [[self loadSpecifiersFromPlistName:@"BannerStyleSettingsOutgoingDirection" target:self] retain];
+		}
+		else if(outgoingBannerStyle > 10 )
+		{
+			_specifiers = [[self loadSpecifiersFromPlistName:@"BannerStyleSettingsIncomingDirection" target:self] retain];
+		}
+		else
+			_specifiers = [[self loadSpecifiersFromPlistName:@"BannerStyleSettingsWithDirection" target:self] retain];
 	}
+
 	return _specifiers;
 }
 

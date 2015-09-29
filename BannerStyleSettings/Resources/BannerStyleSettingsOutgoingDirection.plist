@@ -120,30 +120,6 @@
 			<key>cell</key>  		<string>PSLinkListCell</string>
 			<key>defaults</key> 	<string>com.joshdoctors.bannerstyle</string>
  			<key>detail</key> 		<string>PSListItemsController</string>
- 			<key>key</key> 			<string>incomingDirection</string>
- 			<key>label</key> 		<string>Direction</string>
- 			<key>validTitles</key> <array>
- 				<string>From Left</string>
- 				<string>From Right</string>
- 				<string>From Top</string>
- 				<string>From Bottom</string>
- 			</array>
- 			<key>validValues</key>
- 			<array>
-				<real>0</real>
- 				<real>1</real>
- 				<real>2</real>
- 				<real>3</real>
- 			</array>
- 			<key>id</key>
-			<string>incomingDirectionList</string>
-		</dict>
-		<dict>
-			<key>PostNotification</key>
-			<string>com.joshdoctors.bannerstyle/settingschanged</string>
-			<key>cell</key>  		<string>PSLinkListCell</string>
-			<key>defaults</key> 	<string>com.joshdoctors.bannerstyle</string>
- 			<key>detail</key> 		<string>PSListItemsController</string>
  			<key>key</key> 			<string>outgoingBannerStyle</string>
  			<key>label</key> 		<string>Outgoing Banner Style</string>
  			<key>validTitles</key> <array>
