@@ -52,14 +52,28 @@ typedef enum {
 -(void)displayAnimatedBanner;
 -(void)displayStaticBanner:(NSInteger)val;
 -(void)hideStaticBanner:(NSInteger)val;
+-(void)hideTransitionBanner;
+-(void)setupHidingTransitionBanner;
 -(void)displayTransitionBanner;
 -(void)displayFashionMenuBanner;
+-(void)setupHidingMaterialBanner;
+-(void)hideMaterialBanner;
 -(UIImage*)rotateImage:(UIImage*)img byDegrees:(CGFloat)deg;
 @end
 
 @interface SBBulletinBannerController
 -(id)sharedInstance;
 +(void)_showTestBanner:(BOOL)val;
+@end
+
+@interface SBLockScreenManager
+-(id)sharedInstance;
+-(BOOL)isUILocked;
+@end
+
+@interface SBNotificationCenterController
+-(id)sharedInstance;
+-(BOOL)isVisible;
 @end
 
 @interface _UIBackdropView : UIView
@@ -82,12 +96,15 @@ static BOOL displayingBanner = NO;
 static BOOL inCompletion = NO;
 static _UIBackdropView * backDrop = nil;
 static BOOL preventRealCompletion = YES;
+static BOOL isUILocked;
+static BOOL isNotifVisible;
 
 static BOOL enabled = NO;
 static NSInteger incomingDirection = 0;
 static NSInteger incomingBannerStyle = 0;
 static NSInteger outgoingDirection = 0;
 static NSInteger outgoingBannerStyle = 0;
+static NSInteger materialBannerStyle = 0;
 static BOOL allowLS = NO;
 static BOOL allowNotif = NO;
 static BOOL disableOut = NO;
@@ -108,11 +125,19 @@ static BOOL disableIn = NO;
 	{
 		%orig;
 	}
+	else if(!allowLS && isUILocked)
+	{
+		%orig;
+	}
+	else if(!allowNotif && isNotifVisible)
+	{
+		%orig;
+	}
 	else if(incomingBannerStyle == 22 && [self isPresenting])
 	{
 		%orig;
 	}
-	else if(outgoingBannerStyle == 16 && ![self isPresenting])
+	else if(outgoingBannerStyle == 1 && ![self isPresenting])
 	{
 		%orig;
 	}
@@ -142,28 +167,18 @@ static BOOL disableIn = NO;
 		}
 		else
 		{
-			//if( outgoingBannerStyle == 0)
-			//{
+			if( outgoingBannerStyle == 0)
+			{
 				[self hideStaticBanner:outgoingDirection];
-			//}
+			}
+			else if( outgoingBannerStyle == 1 )
+			{
+				[self setupHidingMaterialBanner];
+				[self hideMaterialBanner];
+			}
 
-			/*
-			else if( incomingBannerStyle > 0 && incomingBannerStyle < 15)
-			{
-				[self setupTransitionBanner];
-				[self displayTransitionBanner];
-			}
-			else if( incomingBannerStyle == 15)
-			{
-				[self setupAnimatedBanner];
-				[self displayAnimatedBanner];
-			}
-			else if( incomingBannerStyle > 15)
-			{
-				[self setupFashionMenuBanner];
-				[self displayFashionMenuBanner];
-			}
-			*/
+			//[self setupHidingTransitionBanner];
+			//[self hideTransitionBanner];
 		}
 	}
 	else
@@ -220,6 +235,7 @@ static BOOL disableIn = NO;
 {
 	SBBannerContainerViewController * bcvc = [self presentedViewController];
 	SBBannerContextView * contextView = [bcvc bannerContextView];
+	contextView.alpha = 1;
 	contextView.frame = CGRectMake(0,0,320,68);
 	CGRect baseRect = contextView.frame;
 
@@ -353,17 +369,15 @@ static BOOL disableIn = NO;
 	layerMask.fillColor = [UIColor blackColor].CGColor;
 	CGMutablePathRef path = CGPathCreateMutable();
 
-	int style = 0;
-
-	if(style==0) //circle
+	if( materialBannerStyle == 0 ) //circle
 	{
 		layerMask.path = [UIBezierPath bezierPathWithRoundedRect:maskRect cornerRadius:animatedBanner.bounds.size.height].CGPath;
 	}
-	else if (style == 1) //square
+	else if (materialBannerStyle == 1) //square
 	{
 		layerMask.path = [UIBezierPath bezierPathWithRect:maskRect].CGPath;
 	} 
-	else if (style == 2) //diamond
+	else if (materialBannerStyle == 2) //diamond
 	{
 		CGPathMoveToPoint(path, nil, maskRect.origin.x + maskRect.size.width/2, maskRect.origin.y);
 		CGPathAddLineToPoint(path, nil, maskRect.origin.x + maskRect.size.width, maskRect.size.height/2);
@@ -372,7 +386,7 @@ static BOOL disableIn = NO;
 		CGPathCloseSubpath(path);
 		layerMask.path = path;
 	}
-	else if (style == 3) //triangle
+	else if (materialBannerStyle == 3) //triangle
 	{
 		CGPathMoveToPoint(path, nil, maskRect.origin.x + maskRect.size.width/2, maskRect.origin.y);
 		CGPathAddLineToPoint(path, nil, maskRect.origin.x + maskRect.size.width, maskRect.size.height);
@@ -382,7 +396,7 @@ static BOOL disableIn = NO;
 
 		//need to change imageview to center of triangle
 	}
-	else if (style == 4) //star
+	else if (materialBannerStyle == 4) //star
 	{
 
 	}
@@ -420,7 +434,7 @@ static BOOL disableIn = NO;
 			tr = CATransform3DScale(tr, 9, 9, 1);
 			anim.toValue = [NSValue valueWithCATransform3D:tr];
 			anim.removedOnCompletion = NO;
-			anim.duration = 0.34f;
+			anim.duration = 0.24f;
 			anim.fillMode = kCAFillModeForwards;
 			anim.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionLinear];
 			[CATransaction setCompletionBlock:^{
@@ -434,7 +448,7 @@ static BOOL disableIn = NO;
 			preventRealCompletion = NO;
 			[self completeTransition:YES];*/
 
-			[UIView animateWithDuration:0.40f delay:0.0 options:UIViewAnimationOptionCurveEaseIn animations:^{
+			[UIView animateWithDuration:0.30f delay:0.0 options:UIViewAnimationOptionCurveEaseIn animations:^{
 				animatedBannerIV.frame = defaultIconFrame;
 			}
 			completion:^(BOOL finished) {
@@ -499,19 +513,20 @@ static BOOL disableIn = NO;
 
 	// fromIV is just a snapshot of the current banner area(no banner is currently visible)
 	fromIV = [[UIImageView alloc] initWithFrame:baseRect];
-	fromIV.image = currentScreen;
+	fromIV.contentMode = UIViewContentModeTopLeft;
 	fromIV.clipsToBounds = YES;
 
 	NSInteger orientation = [UIDevice currentDevice].orientation;
 
-	NSLog(@"orientation: %d %@ %@",orientation, fromIV, NSStringFromCGPoint(fromIV.center));
+	NSLog(@"orientation: %d %@ %@ %@",orientation, fromIV, NSStringFromCGPoint(fromIV.center), currentScreen);
 
 	if (orientation == 1 || orientation == 2)
-			fromIV.contentMode = UIViewContentModeTopLeft;
+	{
+		fromIV.image = currentScreen;
+	}
 	else
 	{
-		fromIV.contentMode = UIViewContentModeTopLeft;
-		UIImage * rotated = [self rotateImage:currentScreen byDegrees:360];
+		UIImage * rotated = [self rotateImage:currentScreen byDegrees:270];
 		fromIV.image = rotated;
 	}
 
@@ -525,9 +540,43 @@ static BOOL disableIn = NO;
 	[bcvc.view insertSubview:containerBanner atIndex:0];
 }
 
+%new - (void)setupHidingTransitionBanner {
+
+	SBBannerContainerViewController * bcvc = [self presentedViewController];
+	SBBannerContextView * contextView = [bcvc bannerContextView];
+	CGRect baseRect = contextView.frame;
+
+	//We need a container for the banner because we want to have a black
+	//background for when a 3D transition effect is applied
+	containerBanner = [[UIView alloc] initWithFrame:baseRect];
+	containerBanner.backgroundColor = [UIColor blackColor];
+
+	transitionBanner = [[UIView alloc] initWithFrame:baseRect];
+	transitionBanner.layer.masksToBounds = YES;
+
+	contextView.alpha = 1;
+
+	/*if([contextView respondsToSelector:@selector(testBlur)])
+	{
+		//Using [UIScreen mainScreen].scale as the scale value makes the backdrop half visible. Why???
+		[contextView testBlur].layer.shouldRasterize = YES;
+		[contextView testBlur].layer.rasterizationScale = 1.5;
+	}
+	else
+	{
+		[contextView backdrop].layer.shouldRasterize = YES;
+		[contextView backdrop].layer.rasterizationScale = 1.5;
+	}*/
+	
+	[transitionBanner addSubview:contextView];
+	[containerBanner addSubview:transitionBanner];
+	[bcvc.view insertSubview:containerBanner atIndex:0];
+}
+
 %new - (UIImage*)rotateImage:(UIImage*)img byDegrees:(CGFloat)val {
 		UIView * rotatedViewBox = [[UIView alloc] initWithFrame:CGRectMake(0,0,img.size.width,img.size.height)];
-		CGAffineTransform t = CGAffineTransformMakeRotation(val * M_PI/180);
+		float angleRadians = val * ((float)M_PI/180.0f);
+		CGAffineTransform t = CGAffineTransformMakeRotation(angleRadians);
 		rotatedViewBox.transform = t;
 		CGSize rotatedSize = rotatedViewBox.frame.size;
 
@@ -537,6 +586,7 @@ static BOOL disableIn = NO;
 		CGContextRef bitmap  = UIGraphicsGetCurrentContext();
 
 		CGContextTranslateCTM(bitmap, rotatedSize.width/2, rotatedSize.height/2);
+		CGContextRotateCTM(bitmap, angleRadians);
 
 		CGContextScaleCTM(bitmap, 1.0, -1.0);
 		CGContextDrawImage(bitmap, CGRectMake(-img.size.width/2, -img.size.height/2, img.size.width, img.size.height), [img CGImage]);
@@ -567,6 +617,26 @@ static BOOL disableIn = NO;
 
 	[transitionBanner.layer addAnimation:transition forKey:nil];
 	[transitionBanner addSubview:toView];
+}
+
+%new - (void)hideTransitionBanner {
+
+	NSString * types[14] = {@"moveIn", @"push", @"reveal", @"pageCurl", @"pageUnCurl", @"cube", @"alignedCube", @"flip", @"alignedFlip", @"oglFlip", @"cameraIris", @"rippleEffect", @"rotate", @"suckEffect"};
+	NSString * subtypes[4] = {kCATransitionFromLeft, kCATransitionFromRight, kCATransitionFromTop, kCATransitionFromBottom };
+
+    [UIView setAnimationsEnabled:YES];
+    [CATransaction flush];
+
+	CATransition * transition = [CATransition animation];
+	transition.delegate = self;
+	transition.duration = 1;
+	transition.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionLinear];
+	transition.type = types[outgoingBannerStyle -1];
+
+	if( outgoingDirection != -1)
+		transition.subtype = subtypes[outgoingDirection];
+
+	[transitionBanner.layer addAnimation:transition forKey:nil];
 }
 
 %new - (void)animationDidStop:(CAAnimation*)theAnimation finished:(BOOL)finished {
@@ -728,10 +798,31 @@ static BOOL disableIn = NO;
 	%orig;
 	NSLog(@"Original animation should have ended.");
 
-	if(!enabled || ![tc isPresenting])
+	if(!enabled)
 		return;
 
+	if(!allowLS)
+	{
+		SBLockScreenManager * lsManager = (SBLockScreenManager*)[objc_getClass("SBLockScreenManager") sharedInstance];
+		isUILocked = [lsManager isUILocked];
+
+		if(isUILocked)
+			return;
+	}
+
+	if(!allowNotif)
+	{
+		SBNotificationCenterController * cont = (SBNotificationCenterController*)[objc_getClass("SBNotificationCenterController") sharedInstance];
+		isNotifVisible = [cont isVisible];
+
+		if(isNotifVisible)
+			return;
+	}
+
 	if([tc isPresenting] && disableIn)
+		return;
+
+	if(![tc isPresenting] && disableOut)
 		return;
 
 	// At this point, the banner would be visible to the user. But we want to display the banner with our
@@ -746,6 +837,12 @@ static BOOL disableIn = NO;
 	NSLog(@"transitionDuration arg: %@ dur: %f", tc, orig);
 
 	if(!enabled)
+		return orig;
+
+	if(!allowLS && isUILocked)
+		return orig;
+
+	if(!allowNotif && isNotifVisible)
 		return orig;
 
 	if([tc isPresenting] && disableIn)
@@ -780,17 +877,23 @@ static void loadPrefs()
     outgoingBannerStyle = !CFPreferencesCopyAppValue(CFSTR("outgoingBannerStyle"), CFSTR("com.joshdoctors.bannerstyle")) ? 0 : [(__bridge id)CFPreferencesCopyAppValue(CFSTR("outgoingBannerStyle"), CFSTR("com.joshdoctors.bannerstyle")) intValue];
     outgoingDirection = !CFPreferencesCopyAppValue(CFSTR("outgoingDirection"), CFSTR("com.joshdoctors.bannerstyle")) ? 0 : [(__bridge id)CFPreferencesCopyAppValue(CFSTR("outgoingDirection"), CFSTR("com.joshdoctors.bannerstyle")) intValue];
 
+	materialBannerStyle = !CFPreferencesCopyAppValue(CFSTR("materialBannerStyle"), CFSTR("com.joshdoctors.bannerstyle")) ? 0 : [(__bridge id)CFPreferencesCopyAppValue(CFSTR("materialBannerStyle"), CFSTR("com.joshdoctors.bannerstyle")) intValue];
+
     if (incomingBannerStyle > 10 )
     	incomingDirection = -1;
 
     if (outgoingBannerStyle > 10 )
     	outgoingDirection = -1;
 
-    if(outgoingBannerStyle == 16 )
+    if(outgoingBannerStyle == 1 )
     	disableOut = YES;
+    else
+    	disableOut = NO;
 
     if(incomingBannerStyle == 22 )
     	disableIn = YES;
+    else
+    	disableIn = NO;
 }
 
 static void showTestBanner()

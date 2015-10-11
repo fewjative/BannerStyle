@@ -124,42 +124,12 @@
  			<key>label</key> 		<string>Outgoing Banner Style</string>
  			<key>validTitles</key> <array>
  				<string>Slide</string>
- 				<string>Move In</string>
- 				<string>Push</string>
- 				<string>Reveal</string>
- 				<string>Page Curl</string>
- 				<string>Page UnCurl</string>
- 				<string>Cube</string>
- 				<string>Aligned Cube</string>
- 				<string>Flip</string>
- 				<string>Aligned Flip</string>
- 				<string>OGL Flip</string>
- 				<string>Camera Iris</string>
- 				<string>Ripple</string>
- 				<string>Rotate</string>
- 				<string>Suck</string>
- 				<string>Material Design</string>
  				<string>Default</string>
  			</array>
  			<key>validValues</key>
  			<array>
 				<real>0</real>
  				<real>1</real>
- 				<real>2</real>
- 				<real>3</real>
- 				<real>4</real>
- 				<real>5</real>
- 				<real>6</real>
- 				<real>7</real>
- 				<real>8</real>
- 				<real>9</real>
- 				<real>10</real>
- 				<real>11</real>
- 				<real>12</real>
- 				<real>13</real>
- 				<real>14</real>
- 				<real>15</real>
- 				<real>16</real>
  			</array>
  			<key>id</key>
 			<string>outgoingBannerStyleList</string>

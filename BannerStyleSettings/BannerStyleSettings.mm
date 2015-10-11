@@ -20,16 +20,21 @@ static NSInteger outgoingBannerStyle = 0;
 		incomingBannerStyle = (!CFPreferencesCopyAppValue(CFSTR("incomingBannerStyle"), CFSTR("com.joshdoctors.bannerstyle")) ? 0 : [(id)CFPreferencesCopyAppValue(CFSTR("incomingBannerStyle"), CFSTR("com.joshdoctors.bannerstyle")) intValue]);
 		outgoingBannerStyle = (!CFPreferencesCopyAppValue(CFSTR("outgoingBannerStyle"), CFSTR("com.joshdoctors.bannerstyle")) ? 0 : [(id)CFPreferencesCopyAppValue(CFSTR("outgoingBannerStyle"), CFSTR("com.joshdoctors.bannerstyle")) intValue]);
 
-		NSLog(@"in/out: %d %d", incomingBannerStyle, outgoingBannerStyle);
-		if(incomingBannerStyle > 10 && outgoingBannerStyle > 10)
+		if(incomingBannerStyle > 10 && outgoingBannerStyle == 1)
 		{
-			_specifiers = [[self loadSpecifiersFromPlistName:@"BannerStyleSettingsNoDirection" target:self] retain];
+			if(incomingBannerStyle == 15)
+				_specifiers = [[self loadSpecifiersFromPlistName:@"BannerStyleSettingsMaterialNoDirection" target:self] retain];
+			else
+				_specifiers = [[self loadSpecifiersFromPlistName:@"BannerStyleSettingsNoDirection" target:self] retain];
 		}
 		else if(incomingBannerStyle > 10)
 		{
-			_specifiers = [[self loadSpecifiersFromPlistName:@"BannerStyleSettingsOutgoingDirection" target:self] retain];
+			if(incomingBannerStyle == 15)
+				_specifiers = [[self loadSpecifiersFromPlistName:@"BannerStyleSettingsMaterialOutgoingDirection" target:self] retain];
+			else
+				_specifiers = [[self loadSpecifiersFromPlistName:@"BannerStyleSettingsOutgoingDirection" target:self] retain];
 		}
-		else if(outgoingBannerStyle > 10 )
+		else if(outgoingBannerStyle == 1 )
 		{
 			_specifiers = [[self loadSpecifiersFromPlistName:@"BannerStyleSettingsIncomingDirection" target:self] retain];
 		}
